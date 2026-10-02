@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", gormaudit, bunaudit, entaudit]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: Generate Ent test code
+        if: matrix.module == 'entaudit'
+        run: go generate ./internal/testent/...
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  examples:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: examples/go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: Generate Ent example code
+        run: go generate ./ent/ent/...
+      - run: go vet ./...
