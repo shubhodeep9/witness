@@ -5,11 +5,8 @@ package tests
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
-	entsql "entgo.io/ent/dialect/sql"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/shubhodeep9/witness"
 	"github.com/shubhodeep9/witness/entaudit"
 	"github.com/shubhodeep9/witness/entaudit/tests/internal/testent"
@@ -19,11 +16,7 @@ import (
 
 func setup(t *testing.T, s witness.Store) *testent.Client {
 	t.Helper()
-	drv, err := entsql.Open("sqlite3", "file:"+strings.NewReplacer("/", "_").Replace(t.Name())+"?mode=memory&cache=shared&_fk=1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	drv.DB().SetMaxOpenConns(1) // a read outside an open tx would deadlock: proves tx joining
+	drv := open(t)
 	client := testent.NewClient(testent.Driver(drv))
 	t.Cleanup(func() { client.Close() })
 	if err := client.Schema.Create(context.Background()); err != nil {

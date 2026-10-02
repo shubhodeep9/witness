@@ -7,11 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/shubhodeep9/witness"
 	"github.com/shubhodeep9/witness/store/memory"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
 )
 
 type User struct {
@@ -32,12 +30,7 @@ type Untracked struct {
 
 func setup(t *testing.T, s witness.Store) (*bun.DB, *Hook) {
 	t.Helper()
-	sqldb, err := sql.Open("sqlite3", "file::memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	sqldb.SetMaxOpenConns(1) // each :memory: connection is its own database; also proves tx joining
-	db := bun.NewDB(sqldb, sqlitedialect.New())
+	db := open(t)
 	var reg witness.Registry
 	reg.Register(&User{}, witness.Options{Mask: []string{"Password"}, Exclude: []string{"ID"}})
 	h := New(&reg, s)

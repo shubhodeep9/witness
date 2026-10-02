@@ -29,6 +29,41 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
 
+  postgres:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [gormaudit, bunaudit, entaudit/tests]
+        pg: ["14", "16"]
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      WITNESS_TEST_PG: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: "**/go.sum"
+      - name: Generate Ent test code
+        if: matrix.module == 'entaudit/tests'
+        run: go generate ./internal/testent/...
+      - run: go test -race ./...
+
   examples:
     runs-on: ubuntu-latest
     defaults:

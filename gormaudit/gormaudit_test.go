@@ -7,7 +7,6 @@ import (
 
 	"github.com/shubhodeep9/witness"
 	"github.com/shubhodeep9/witness/store/memory"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -25,12 +24,7 @@ type Untracked struct {
 
 func setup(t *testing.T, s witness.Store) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sqlDB, _ := db.DB()
-	sqlDB.SetMaxOpenConns(1) // each :memory: connection is its own database
+	db := open(t)
 	var reg witness.Registry
 	reg.Register(&User{}, witness.Options{Mask: []string{"Password"}, Exclude: []string{"ID"}})
 	if err := db.Use(New(&reg, s)); err != nil {

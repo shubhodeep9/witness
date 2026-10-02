@@ -106,6 +106,11 @@ GORM `Create(&map)`) are not audited.
 go test ./...                                  # core; also run in gormaudit/, bunaudit/, entaudit/tests/
 (cd entaudit/tests/internal/testent && go generate ./...)   # needed before testing entaudit (cd entaudit/tests)
 (cd examples/ent/ent && go generate ./...)            # needed before building the Ent example
+
+# The adapter tests run on in-memory SQLite. To run them on Postgres, point WITNESS_TEST_PG at a server;
+# each test gets its own schema:
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+WITNESS_TEST_PG='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' go test ./...
 ```
 
 The Ent code under `entaudit/tests/internal/testent` and `examples/ent/ent` is generated and
