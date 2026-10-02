@@ -52,6 +52,12 @@ ctx = witness.WithMeta(ctx, witness.Meta{Actor: "alice", RemoteAddr: "203.0.113.
 db.WithContext(ctx).Create(&user) // audited
 ```
 
+> **Wrap writes in a transaction.** GORM is atomic by default. With Bun and Ent, a write made
+> *outside* a transaction commits first and is audited afterwards, so if the audit write fails
+> the change is already saved and its entry is lost. Bun reports the failure to `OnError`; Ent
+> returns it to the caller. Inside a transaction a failed audit write rolls everything back.
+> See [Atomicity](#atomicity).
+
 For HTTP servers, the middleware does the last step for you:
 
 ```go
@@ -87,6 +93,41 @@ db.Where("object_type = ? AND object_id = ?", "users", "1").Order("id").Find(&hi
 `Store` against your generated client, using `entaudit.Mutation(ctx).(interface{ Client() *ent.Client })`;
 [`examples/ent`](examples/ent) has a complete one with an `AuditLog` schema.
 
+## Atomicity
+
+An audit trail is only trustworthy if a change and its entry succeed or fail together.
+
+| | Outside a transaction | Inside a transaction |
+|---|---|---|
+| **GORM** | atomic: the plugin runs inside GORM's per-write transaction | atomic |
+| **Bun** | the change commits, then the entry is written; if that fails the entry is lost and `Hook.OnError` is called | a failed entry write rolls the transaction back, so `Commit` fails |
+| **Ent** | the change commits, then the entry is written; if that fails the error is returned but the change is saved | a failed entry write returns an error; roll back to undo the change |
+
+GORM is only atomic while its default transaction is on: with `SkipDefaultTransaction: true`
+a failed entry write returns the error, but the change is already saved (as with Ent outside a
+transaction). Bun and Ent can't make the write atomic for you:
+a Bun hook runs while the query is already executing on its connection, and an Ent hook has
+no generic way to open a transaction. So open one yourself:
+
+```go
+// Bun
+err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+    _, err := tx.NewUpdate().Model(&user).WherePK().Exec(ctx)
+    return err
+}) // a failed audit write makes this return an error, and nothing is saved
+
+// Ent
+tx, err := client.Tx(ctx)
+if err != nil { return err }
+if _, err := tx.User.UpdateOneID(id).SetName("Robert").Save(ctx); err != nil {
+    return errors.Join(err, tx.Rollback()) // includes a failed audit write
+}
+return tx.Commit()
+```
+
+If some writes can't run in a transaction, make a lost entry loud instead of silent: set
+`Hook.OnError` (Bun) to alert or panic, and check the error from every Ent write.
+
 ## Behaviour by adapter
 
 | | GORM | Bun | Ent |
@@ -94,7 +135,7 @@ db.Where("object_type = ? AND object_id = ?", "users", "1").Order("id").Find(&hi
 | Old values | extra SELECT before and after an update | extra SELECT before and after an update | extra SELECT per row before; one after an update |
 | Bulk update / delete | yes | yes | yes, one entry per row |
 | Joins the caller's transaction | yes | yes (reads Bun internals by reflection) | yes (via the generated client) |
-| Failed audit write | operation fails and rolls back | `OnError` is called and the transaction is rolled back; outside a transaction the change is already committed | operation returns the error; roll back with `client.Tx`; outside a transaction the change is already committed |
+| Failed audit write | operation fails and rolls back (with GORM's default transaction; see [Atomicity](#atomicity)) | `OnError` is called and the transaction is rolled back; outside a transaction the change is already committed | operation returns the error; roll back with `client.Tx`; outside a transaction the change is already committed |
 | `ObjectType` | table name | table name | Ent type name |
 
 Shared limits: single-column primary keys only, and map-based creates (for example
