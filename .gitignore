@@ -1,7 +1,7 @@
-# Ent code for entaudit's tests is generated: run `go generate ./...` in entaudit/internal/testent
-/entaudit/internal/testent/*
-!/entaudit/internal/testent/generate.go
-!/entaudit/internal/testent/schema/
+# Ent code for entaudit's tests is generated: run `go generate ./...` in entaudit/tests/internal/testent
+/entaudit/tests/internal/testent/*
+!/entaudit/tests/internal/testent/generate.go
+!/entaudit/tests/internal/testent/schema/
 
 # Ent client for the example is generated: (cd examples/ent/ent && go generate ./...)
 /examples/ent/ent/*

@@ -1,4 +1,6 @@
-package entaudit
+// Package tests exercises entaudit against generated Ent code. It is a separate module so
+// the published entaudit module carries no tests that import ungenerated packages.
+package tests
 
 import (
 	"context"
@@ -9,8 +11,9 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shubhodeep9/witness"
-	"github.com/shubhodeep9/witness/entaudit/internal/testent"
-	"github.com/shubhodeep9/witness/entaudit/internal/testent/user"
+	"github.com/shubhodeep9/witness/entaudit"
+	"github.com/shubhodeep9/witness/entaudit/tests/internal/testent"
+	"github.com/shubhodeep9/witness/entaudit/tests/internal/testent/user"
 	"github.com/shubhodeep9/witness/store/memory"
 )
 
@@ -28,7 +31,7 @@ func setup(t *testing.T, s witness.Store) *testent.Client {
 	}
 	var reg witness.Registry
 	reg.Register(&testent.User{}, witness.Options{Mask: []string{"Password"}, Exclude: []string{"ID"}})
-	client.Use(Hook(&reg, s))
+	client.Use(entaudit.Hook(&reg, s))
 	return client
 }
 
@@ -127,7 +130,7 @@ func TestStoreFailureFailsOperation(t *testing.T) {
 func TestMutationInContext(t *testing.T) {
 	var seen bool
 	client := setup(t, storeFunc(func(ctx context.Context, e witness.Entry) error {
-		_, ok := Mutation(ctx).(interface{ Client() *testent.Client })
+		_, ok := entaudit.Mutation(ctx).(interface{ Client() *testent.Client })
 		seen = ok
 		return nil
 	}))

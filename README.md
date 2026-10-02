@@ -103,12 +103,12 @@ GORM `Create(&map)`) are not audited.
 ## Development
 
 ```bash
-go test ./...                                  # core; also run in gormaudit/, bunaudit/, entaudit/
-(cd entaudit/internal/testent && go generate ./...)   # needed before testing entaudit
+go test ./...                                  # core; also run in gormaudit/, bunaudit/, entaudit/tests/
+(cd entaudit/tests/internal/testent && go generate ./...)   # needed before testing entaudit (cd entaudit/tests)
 (cd examples/ent/ent && go generate ./...)            # needed before building the Ent example
 ```
 
-The Ent code under `entaudit/internal/testent` and `examples/ent/ent` is generated and
+The Ent code under `entaudit/tests/internal/testent` and `examples/ent/ent` is generated and
 gitignored; only the schemas and `generate.go` files are committed. The SQLite tests use cgo.
 
 ## Releasing
@@ -121,5 +121,5 @@ local one, so release the core first:
 3. Tag each adapter with its directory prefix (`gormaudit/v0.x.y`, `bunaudit/v0.x.y`,
    `entaudit/v0.x.y`) and push the tags.
 
-`examples/` keeps `replace` directives so it always builds against the local source; it is never
-released.
+`entaudit/tests` and `examples/` are never released and keep `replace` directives so they build against the local source. `entaudit/tests` is its own module so that
+the published `entaudit` carries no test files that import generated (unpublished) code.
