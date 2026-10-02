@@ -31,6 +31,19 @@ func (r *Registry) Lookup(model any) (Options, bool) {
 	return o, ok
 }
 
+// LookupName finds a model by its Go type name (e.g. "User"), for adapters that only see
+// names, like Ent mutations. If several registered types share a name, one is returned.
+func (r *Registry) LookupName(name string) (Options, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for t, o := range r.models {
+		if t.Name() == name {
+			return o, true
+		}
+	}
+	return Options{}, false
+}
+
 func typeOf(model any) reflect.Type {
 	t := reflect.TypeOf(model)
 	for t != nil && t.Kind() == reflect.Pointer {

@@ -18,6 +18,13 @@ func TestRegistry(t *testing.T) {
 		}
 	}
 
+	if o, ok := r.LookupName("user"); !ok || len(o.Mask) != 1 {
+		t.Fatalf("LookupName: got %+v, %v", o, ok)
+	}
+	if _, ok := r.LookupName("nope"); ok {
+		t.Fatal("unknown name found")
+	}
+
 	if _, ok := r.Lookup(struct{}{}); ok {
 		t.Fatal("unregistered type found")
 	}
