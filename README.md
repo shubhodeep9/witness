@@ -62,6 +62,23 @@ Runnable versions are in [`examples/`](examples).
   exposes the caller's transaction to the store (`gormaudit.TxFrom`, `bunaudit.Conn`,
   `entaudit.Mutation`) so the audit row can be written atomically.
 
+### Persisting entries
+
+`gormaudit` and `bunaudit` ship a database store that writes a `LogEntry` row in the same
+transaction as the change, so the two commit or roll back together:
+
+```go
+db.AutoMigrate(&gormaudit.LogEntry{})            // Bun: db.NewCreateTable().Model((*bunaudit.LogEntry)(nil)).Exec(ctx)
+db.Use(gormaudit.New(&reg, gormaudit.NewStore())) // Bun: bunaudit.New(&reg, bunaudit.NewStore())
+
+var history []gormaudit.LogEntry
+db.Where("object_type = ? AND object_id = ?", "users", "1").Order("id").Find(&history)
+```
+
+`LogEntry` is a normal model, so query it with your ORM; `row.Entry()` converts it back to a
+`witness.Entry`. Don't register `LogEntry` itself with the `Registry`. For Ent, write your own
+`Store` against your generated client, using `entaudit.Mutation(ctx).(interface{ Client() *ent.Client })`.
+
 ## Behaviour by adapter
 
 | | GORM | Bun | Ent |

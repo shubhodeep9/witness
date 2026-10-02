@@ -36,7 +36,7 @@ func setup(t *testing.T, s witness.Store) *gorm.DB {
 	if err := db.Use(New(&reg, s)); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&User{}, &Untracked{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &Untracked{}, &LogEntry{}); err != nil {
 		t.Fatal(err)
 	}
 	return db

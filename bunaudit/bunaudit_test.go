@@ -43,7 +43,7 @@ func setup(t *testing.T, s witness.Store) (*bun.DB, *Hook) {
 	h := New(&reg, s)
 	db.AddQueryHook(h)
 	ctx := context.Background()
-	for _, m := range []any{(*User)(nil), (*Untracked)(nil)} {
+	for _, m := range []any{(*User)(nil), (*Untracked)(nil), (*LogEntry)(nil)} {
 		if _, err := db.NewCreateTable().Model(m).Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
