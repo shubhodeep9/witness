@@ -10,6 +10,13 @@ update users#1 by alice  {"Name":{"old":"Bob","new":"Robert"}}
 delete users#1 by alice  {"Name":{"old":"Robert","new":null},"Password":{"old":"****","new":null}}
 ```
 
+## Install
+
+```bash
+go get github.com/shubhodeep9/witness            # core
+go get github.com/shubhodeep9/witness/gormaudit   # and/or bunaudit, entaudit
+```
+
 ## Packages
 
 Each adapter is its own Go module, so you only pull in the ORM you use.
@@ -104,6 +111,15 @@ go test ./...                                  # core; also run in gormaudit/, b
 The Ent code under `entaudit/internal/testent` and `examples/ent/ent` is generated and
 gitignored; only the schemas and `generate.go` files are committed. The SQLite tests use cgo.
 
-Until the first release, each adapter's `go.mod` points at the core with a `replace`
-directive. Before tagging, remove those lines, then tag the core (`v0.1.0`) followed by each
-adapter with its directory prefix (`gormaudit/v0.1.0`, `bunaudit/v0.1.0`, `entaudit/v0.1.0`).
+## Releasing
+
+Each module is versioned separately. Adapters depend on a released core version, not the
+local one, so release the core first:
+
+1. Tag the core (`git tag v0.x.y`) and push the tag.
+2. In each adapter, `go get github.com/shubhodeep9/witness@v0.x.y && go mod tidy`; commit.
+3. Tag each adapter with its directory prefix (`gormaudit/v0.x.y`, `bunaudit/v0.x.y`,
+   `entaudit/v0.x.y`) and push the tags.
+
+`examples/` keeps `replace` directives so it always builds against the local source; it is never
+released.

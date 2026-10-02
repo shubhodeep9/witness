@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/mattn/go-sqlite3 v1.14.28
-	github.com/shubhodeep9/witness v0.0.0
+	github.com/shubhodeep9/witness v0.1.0
 )
 
 require (
@@ -25,5 +25,3 @@ require (
 	golang.org/x/text v0.21.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/shubhodeep9/witness => ../

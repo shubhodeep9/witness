@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/mattn/go-sqlite3 v1.14.52
-	github.com/shubhodeep9/witness v0.0.0
+	github.com/shubhodeep9/witness v0.1.0
 	github.com/uptrace/bun v1.2.18
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
 )
@@ -17,5 +17,3 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 )
-
-replace github.com/shubhodeep9/witness => ../

@@ -3,7 +3,7 @@ module github.com/shubhodeep9/witness/examples
 go 1.25.0
 
 require (
-	github.com/shubhodeep9/witness v0.0.0
+	github.com/shubhodeep9/witness v0.1.0
 	github.com/shubhodeep9/witness/gormaudit v0.0.0
 	github.com/uptrace/bun v1.2.18
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
