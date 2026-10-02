@@ -1,0 +1,51 @@
+name: bun-latest
+
+# bunaudit reads Bun's unexported fields by reflection, so test it against the newest Bun
+# release, weekly as well as on changes, to catch upstream breakage before users do.
+on:
+  push:
+    branches: [main]
+    paths: ["bunaudit/**", ".github/workflows/bun-latest.yml"]
+  pull_request:
+    paths: ["bunaudit/**", ".github/workflows/bun-latest.yml"]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  bun-latest:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      WITNESS_TEST_PG: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+    defaults:
+      run:
+        working-directory: bunaudit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bunaudit/go.mod
+          cache: false
+      - name: Upgrade Bun to the latest release
+        run: |
+          go get github.com/uptrace/bun@latest \
+                 github.com/uptrace/bun/dialect/sqlitedialect@latest \
+                 github.com/uptrace/bun/dialect/pgdialect@latest \
+                 github.com/uptrace/bun/driver/pgdriver@latest
+          go list -m github.com/uptrace/bun
+      - name: Test on SQLite
+        run: WITNESS_TEST_PG= go test -race -count=1 ./...
+      - name: Test on Postgres
+        run: go test -race -count=1 ./...

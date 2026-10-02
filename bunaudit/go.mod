@@ -5,10 +5,10 @@ go 1.24.0
 require (
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/shubhodeep9/witness v0.1.0
-	github.com/uptrace/bun v1.2.18
-	github.com/uptrace/bun/dialect/pgdialect v1.2.18
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
-	github.com/uptrace/bun/driver/pgdriver v1.2.18
+	github.com/uptrace/bun v1.2.16
+	github.com/uptrace/bun/dialect/pgdialect v1.2.16
+	github.com/uptrace/bun/dialect/sqlitedialect v1.2.16
+	github.com/uptrace/bun/driver/pgdriver v1.2.16
 )
 
 require (

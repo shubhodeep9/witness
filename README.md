@@ -27,7 +27,7 @@ Each adapter is its own Go module, so you only pull in the ORM you use.
 | `github.com/shubhodeep9/witness/store/memory` | In-memory `Store` for tests and examples | 1.23 |
 | `github.com/shubhodeep9/witness/middleware` | `net/http` middleware that sets the actor and remote address | 1.23 |
 | `github.com/shubhodeep9/witness/gormaudit` | GORM plugin | 1.23 |
-| `github.com/shubhodeep9/witness/bunaudit` | Bun query hook | 1.24 |
+| `github.com/shubhodeep9/witness/bunaudit` | Bun query hook (Bun v1.2.16+, see [Bun versions](#bun-versions)) | 1.24 |
 | `github.com/shubhodeep9/witness/entaudit` | Ent mutation hook | 1.25 |
 
 ## Usage
@@ -140,6 +140,15 @@ If some writes can't run in a transaction, make a lost entry loud instead of sil
 
 Shared limits: single-column primary keys only, and map-based creates (for example
 GORM `Create(&map)`) are not audited.
+
+### Bun versions
+
+`bunaudit` reads some of Bun's internals by reflection, so it is tied to Bun's version. It is
+tested with Bun v1.2.16 to v1.2.18 and requires at least v1.2.16; v1.2.15 and earlier don't
+compile against it. A CI job (weekly, and on every change to `bunaudit`) runs the full suite
+against the newest Bun release. If a Bun upgrade removes what `bunaudit` relies on, writes fail
+loudly (`OnError` is called and the transaction rolls back) instead of silently dropping
+entries; after upgrading Bun, run `go test ./...` in `bunaudit` (`TestInspect` pins the internals).
 
 ## Development
 
