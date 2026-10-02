@@ -16,9 +16,10 @@ Each adapter is its own Go module, so you only pull in the ORM you use.
 
 | Import path | What | Go |
 |---|---|---|
-| `github.com/shubhodeep9/witness` | Core: `Entry`, `Diff`, `Registry`, `Store`, context metadata. No dependencies. | 1.21 |
-| `github.com/shubhodeep9/witness/store/memory` | In-memory `Store` for tests and examples | 1.21 |
-| `github.com/shubhodeep9/witness/gormaudit` | GORM plugin | 1.21 |
+| `github.com/shubhodeep9/witness` | Core: `Entry`, `Diff`, `Registry`, `Store`, context metadata. No dependencies. | 1.23 |
+| `github.com/shubhodeep9/witness/store/memory` | In-memory `Store` for tests and examples | 1.23 |
+| `github.com/shubhodeep9/witness/middleware` | `net/http` middleware that sets the actor and remote address | 1.23 |
+| `github.com/shubhodeep9/witness/gormaudit` | GORM plugin | 1.23 |
 | `github.com/shubhodeep9/witness/bunaudit` | Bun query hook | 1.24 |
 | `github.com/shubhodeep9/witness/entaudit` | Ent mutation hook | 1.25 |
 
@@ -43,6 +44,15 @@ client.Use(entaudit.Hook(&reg, &store))          // Ent
 ctx = witness.WithMeta(ctx, witness.Meta{Actor: "alice", RemoteAddr: "203.0.113.7"})
 db.WithContext(ctx).Create(&user) // audited
 ```
+
+For HTTP servers, the middleware does the last step for you:
+
+```go
+mux := middleware.New(func(r *http.Request) string { return userIDFrom(r) })(handler)
+```
+
+It records `r.RemoteAddr` without the port and ignores `X-Forwarded-For`, which clients can
+spoof. Behind a proxy, run a real-IP middleware (one that rewrites `r.RemoteAddr`) first.
 
 Runnable versions are in [`examples/`](examples).
 

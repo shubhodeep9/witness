@@ -1,6 +1,6 @@
 module github.com/shubhodeep9/witness/gormaudit
 
-go 1.21.5
+go 1.23.0
 
 require (
 	github.com/shubhodeep9/witness v0.0.0
