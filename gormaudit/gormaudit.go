@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/shubhodeep9/witness"
+	"github.com/shubhodeep9/witness/internal/audit"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
@@ -53,13 +53,6 @@ func (p *plugin) Initialize(db *gorm.DB) error {
 
 const oldKey = "witness:old"
 
-// snap is one row's state, keyed by Go field name.
-type snap struct {
-	pk       any
-	id, repr string
-	fields   map[string]any
-}
-
 // opts reports whether this statement's model is audited.
 func (p *plugin) opts(db *gorm.DB) (witness.Options, bool) {
 	s := db.Statement.Schema
@@ -74,7 +67,7 @@ func (p *plugin) afterCreate(db *gorm.DB) {
 	if !ok {
 		return
 	}
-	for _, rv := range structs(db.Statement.ReflectValue) {
+	for _, rv := range audit.Structs(db.Statement.ReflectValue) {
 		n := take(db.Statement.Schema, rv)
 		p.emit(db, witness.Create, o, nil, &n)
 	}
@@ -92,7 +85,7 @@ func (p *plugin) loadOld(db *gorm.DB) {
 		q, hasWhere = q.Clauses(c.Expression), true
 	}
 	var ids []any
-	for _, rv := range structs(db.Statement.ReflectValue) {
+	for _, rv := range audit.Structs(db.Statement.ReflectValue) {
 		if v, zero := f.ValueOf(db.Statement.Context, rv); !zero {
 			ids = append(ids, v)
 		}
@@ -119,7 +112,7 @@ func (p *plugin) afterUpdate(db *gorm.DB) {
 	s, f := db.Statement.Schema, db.Statement.Schema.PrioritizedPrimaryField
 	ids := make([]any, len(old))
 	for i, r := range old {
-		ids[i] = r.pk
+		ids[i] = r.Key
 	}
 	q := db.Session(&gorm.Session{NewDB: true}).Where(clause.IN{Column: clause.Column{Name: f.DBName}, Values: ids})
 	cur, err := load(q, s)
@@ -127,12 +120,12 @@ func (p *plugin) afterUpdate(db *gorm.DB) {
 		db.AddError(err)
 		return
 	}
-	byID := make(map[string]snap, len(cur))
+	byID := make(map[string]audit.Snap, len(cur))
 	for _, r := range cur {
-		byID[r.id] = r
+		byID[r.ID] = r
 	}
 	for i := range old {
-		if n, ok := byID[old[i].id]; ok {
+		if n, ok := byID[old[i].ID]; ok {
 			p.emit(db, witness.Update, o, &old[i], &n)
 		}
 	}
@@ -149,75 +142,34 @@ func (p *plugin) afterDelete(db *gorm.DB) {
 	}
 }
 
-func oldRows(db *gorm.DB) []snap {
+func oldRows(db *gorm.DB) []audit.Snap {
 	v, _ := db.InstanceGet(oldKey)
-	rows, _ := v.([]snap)
+	rows, _ := v.([]audit.Snap)
 	return rows
 }
 
-// emit diffs old→new (either may be nil) and writes the entry; a store error fails the write.
-func (p *plugin) emit(db *gorm.DB, a witness.Action, o witness.Options, old, new *snap) {
-	var of, nf map[string]any
-	cur := new
-	if old != nil {
-		of, cur = old.fields, old
-	}
-	if new != nil {
-		nf, cur = new.fields, new
-	}
-	changes := witness.Diff(of, nf, o)
-	if a == witness.Update && len(changes) == 0 {
-		return
-	}
-	ctx := db.Statement.Context
-	m := witness.MetaFrom(ctx)
-	e := witness.Entry{
-		ObjectType: db.Statement.Schema.Table,
-		ObjectID:   cur.id,
-		ObjectRepr: cur.repr,
-		Action:     a,
-		Changes:    changes,
-		Actor:      m.Actor,
-		RemoteAddr: m.RemoteAddr,
-		Timestamp:  time.Now(),
-	}
-	ctx = context.WithValue(ctx, txKey{}, db.Session(&gorm.Session{NewDB: true}))
-	if err := p.store.Write(ctx, e); err != nil {
+// emit writes the entry for one row; a store error fails the write.
+func (p *plugin) emit(db *gorm.DB, a witness.Action, o witness.Options, old, new *audit.Snap) {
+	ctx := context.WithValue(db.Statement.Context, txKey{}, db.Session(&gorm.Session{NewDB: true}))
+	if err := audit.Emit(ctx, p.store, db.Statement.Schema.Table, a, o, old, new); err != nil {
 		db.AddError(err)
 	}
 }
 
-// structs flattens a struct, slice or array (of values or pointers) into struct values.
-func structs(rv reflect.Value) []reflect.Value {
-	switch rv.Kind() {
-	case reflect.Struct:
-		return []reflect.Value{rv}
-	case reflect.Slice, reflect.Array:
-		out := make([]reflect.Value, 0, rv.Len())
-		for i := 0; i < rv.Len(); i++ {
-			if e := reflect.Indirect(rv.Index(i)); e.Kind() == reflect.Struct {
-				out = append(out, e)
-			}
-		}
-		return out
-	}
-	return nil // maps etc.
-}
-
-func load(q *gorm.DB, s *schema.Schema) ([]snap, error) {
+func load(q *gorm.DB, s *schema.Schema) ([]audit.Snap, error) {
 	rows := reflect.New(reflect.SliceOf(s.ModelType))
 	if err := q.Find(rows.Interface()).Error; err != nil {
 		return nil, err
 	}
 	rv := rows.Elem()
-	out := make([]snap, rv.Len())
+	out := make([]audit.Snap, rv.Len())
 	for i := range out {
 		out[i] = take(s, rv.Index(i))
 	}
 	return out, nil
 }
 
-func take(s *schema.Schema, rv reflect.Value) snap {
+func take(s *schema.Schema, rv reflect.Value) audit.Snap {
 	ctx := context.Background()
 	fields := make(map[string]any, len(s.Fields))
 	for _, f := range s.Fields {
@@ -225,30 +177,9 @@ func take(s *schema.Schema, rv reflect.Value) snap {
 			continue
 		}
 		v, _ := f.ValueOf(ctx, rv)
-		fields[f.Name] = deref(v)
+		fields[f.Name] = audit.Deref(v)
 	}
 	pk, _ := s.PrioritizedPrimaryField.ValueOf(ctx, rv)
 	id := fmt.Sprint(pk)
-	repr := s.Table + " " + id
-	if rv.CanAddr() {
-		if st, ok := rv.Addr().Interface().(fmt.Stringer); ok {
-			repr = st.String()
-		}
-	}
-	return snap{pk: pk, id: id, repr: repr, fields: fields}
-}
-
-// deref unwraps pointers so snapshots don't alias live structs and nil == absent.
-func deref(v any) any {
-	rv := reflect.ValueOf(v)
-	for rv.Kind() == reflect.Pointer {
-		if rv.IsNil() {
-			return nil
-		}
-		rv = rv.Elem()
-	}
-	if !rv.IsValid() {
-		return nil
-	}
-	return rv.Interface()
+	return audit.Snap{Key: pk, ID: id, Repr: audit.Repr(rv, s.Table+" "+id), Fields: fields}
 }
