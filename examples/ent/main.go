@@ -15,7 +15,6 @@ import (
 	"github.com/shubhodeep9/witness"
 	"github.com/shubhodeep9/witness/entaudit"
 	"github.com/shubhodeep9/witness/examples/ent/ent"
-	"github.com/shubhodeep9/witness/store/memory"
 )
 
 func main() {
@@ -39,8 +38,7 @@ func main() {
 		Mask:    []string{"Password"},
 	})
 
-	var store memory.Store // swap for your own witness.Store to persist entries
-	client.Use(entaudit.Hook(&reg, &store))
+	client.Use(entaudit.Hook(&reg, store{})) // store.go persists entries to the AuditLog table
 
 	// Who did it: normally set per request (e.g. from auth middleware).
 	ctx = witness.WithMeta(ctx, witness.Meta{Actor: "alice", RemoteAddr: "203.0.113.7"})
@@ -56,8 +54,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, e := range store.Entries() {
-		b, _ := json.Marshal(e.Changes)
-		fmt.Printf("%-6s %s#%s by %s  %s\n", e.Action, e.ObjectType, e.ObjectID, e.Actor, b)
+	logs, err := client.AuditLog.Query().Order(ent.Asc("id")).All(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, l := range logs {
+		b, _ := json.Marshal(l.Changes)
+		fmt.Printf("%-6s %s#%s by %s  %s\n", l.Action, l.ObjectType, l.ObjectID, l.Actor, b)
 	}
 }

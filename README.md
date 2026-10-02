@@ -77,7 +77,8 @@ db.Where("object_type = ? AND object_id = ?", "users", "1").Order("id").Find(&hi
 
 `LogEntry` is a normal model, so query it with your ORM; `row.Entry()` converts it back to a
 `witness.Entry`. Don't register `LogEntry` itself with the `Registry`. For Ent, write your own
-`Store` against your generated client, using `entaudit.Mutation(ctx).(interface{ Client() *ent.Client })`.
+`Store` against your generated client, using `entaudit.Mutation(ctx).(interface{ Client() *ent.Client })`;
+[`examples/ent`](examples/ent) has a complete one with an `AuditLog` schema.
 
 ## Behaviour by adapter
 
